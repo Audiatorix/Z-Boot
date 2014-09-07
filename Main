@@ -1,0 +1,527 @@
+@ECHO OFF
+:begin
+title Z-Boot Custom Server Startup - Created by Zander
+IF NOT exist %CD%\Z-Boot (
+  md Z-Boot
+  echo Z-Boot folder created.
+  )
+IF NOT exist %CD%\Z-Boot\presets (
+  cd Z-Boot
+  md presets
+  cd ..
+  echo Preset Folder created.
+  )
+IF NOT exist %CD%\Z-Boot\hasused.txt (
+  echo >nul 2> %CD%\Z-Boot\hasused.txt
+  goto intsetup
+) else (
+  goto intcheck
+  )
+
+:intcheck
+cd Z-Boot
+FOR /f "tokens=1" %%G IN (multi.txt) DO set multi=%%G
+FOR /f "tokens=1" %%G IN (utlpr.txt) DO set utlpr=%%G
+cd ..
+IF %multi%==yes (
+  set intgoto=nameask
+  )
+IF %multi%==no IF %utlpr%==no (
+  set intgoto=ramtypeselection
+  )
+IF %utlpr%==no (
+  set namegoto=ramtypeselection
+  )
+IF %utlpr%==yes (
+  set namegoto=pruseask
+  )
+goto %intgoto%
+
+:intsetup
+echo It looks like this is your first time using Z-Boot.
+echo If it isn't, and you've just reinstalled or deleted the folder, simply go through this again.
+echo Press any key to continue with setup...
+PAUSE 1> nul
+title Z-Boot - Initial setup
+echo Do you plan to run multiple servers on this machine? "yes" or "no"
+set multiserv=def
+:multierr
+set /p multiserv="> "
+IF %multiserv%==yes (
+  echo yes >>%CD%\Z-Boot\multi.txt
+  goto intpr
+  )
+IF %multiserv%==no (
+  echo no >>%CD%\Z-Boot\multi.txt
+  goto intpr
+  )
+echo Error: Invalid Response. Please enter "yes" or "no"
+goto multierr
+
+:intpr
+cls
+echo Do you want to utilize the preset feature? "yes" or "no"
+echo Note: The preset feature is quicker on startup, but allows less control.
+set utlpr=def
+:intprerr
+set /p utlpr="> "
+IF %utlpr%==yes (
+  echo yes >> %CD%\Z-Boot\utlpr.txt
+  goto intdone
+  )
+IF %utlpr%==no (
+  echo no >> %CD%\Z-Boot\utlpr.txt
+  goto intdone
+  )
+echo Error: Invalid Response. Please enter "yes" or "no"
+goto intprerr
+
+:intdone
+cls
+echo Initial Setup Complete.
+echo Press any key to restart the application... 
+PAUSE 1> nul
+cls
+goto begin
+
+:nameask
+cls
+echo What would you like the name of this server to be?
+:nameerr
+set servname=def
+set /p servname="> "
+IF %servname%==def (
+  cls
+  echo Error: Please enter a name for the server.
+  goto nameerr
+  )
+cls
+echo Setting Server Name...
+title Z-Boot - %servname%
+echo Server Name Set!
+goto %namegoto%
+
+:pruseask
+echo Would you like to use a preset? "yes" or "no"
+echo Note: You can modify the presets with the preset editor
+set usepreset=def
+:preseterr
+set /p usepreset="> "
+IF %usepreset%==no (
+  cls
+  goto ramtypeselection
+  )
+IF %usepreset%==yes (
+  cls
+  goto prselectask
+  )
+cls
+echo Error: Invalid response. Please enter "yes" or "no"
+goto preseterr
+
+:prselectask
+echo What is the name of the preset you would like to use?
+echo (Excluding .bat)
+goto prselect
+set prusename=def
+
+:prselect
+set /p prusename="> "
+IF NOT exist %CD%\Z-Boot\presets\%prusename%.bat (
+  echo Error: Preset %prusename%.bat does not exist. 
+  echo Please check your spelling, and make sure the preset is in the presets folder in the Z-Boot folder.
+  echo Press any key to go back to the selection process.
+  PAUSE 1> nul
+  cls
+  goto prselectask
+) else (
+  echo You wish to use %prusename%.bat? "yes" or "no"
+  goto prconfirm
+  )
+
+:prconfirm
+set prcon=def
+set /p prcon="> "
+IF %prcon%==yes (
+  goto prstart
+  )
+IF %prcon%==no (
+  cls
+  goto prselectask
+  )
+echo Error: Invalid response. Please enter "yes" or "no"
+goto prconfirm
+
+:prstart
+cls
+cd Z-Boot
+cd presets
+:runpreset
+echo Starting server from %prusename%.bat...
+call %prname%.bat
+
+:prrestartask
+cls
+echo Would you like to restart the server, or close down? "restart" or "close"
+set res=def
+
+:prrestart
+set /p res="> "
+IF %res%==restart (
+  cls
+  cd ..
+  cd presets
+  goto runpreset
+  )
+IF %res%==close (
+  set boottype=norm
+  cls
+  goto stopp
+  )
+cls
+echo Error: Invalid response. Please enter "restart" or "close"
+goto prrestart
+
+:ramtypeselection
+echo Would you like to select RAM in MB or GB? Enter "gb" or "mb"
+set ramtype=def
+set /p ramtype="> "
+IF %ramtype%==mb (
+  set b=M
+  set ramdisplay=megs
+  cls
+  echo MB selected
+  goto ramamountselection
+  )
+IF %ramtype%==gb (
+  set b=G
+  set ramdisplay=gigs
+  cls
+  echo GB selected.
+  goto ramamountselection
+  )
+IF NOT %ramtype%==mb IF NOT %ramtype%==gb (
+goto badramtypeselect
+  )
+
+:badramtypeselect
+cls
+echo Error: Invalid response. Please enter gb or mb.
+goto ramtypeselection
+
+:ramamountselection
+echo How many %ramdisplay% would you like to use?
+echo Enter back if you wish to change your RAM type.
+set ramamount=0
+set /p ramamount="> "
+IF %ramamount%==back (
+  cls
+  goto ramtypeselection
+  ) else (
+  goto startupconfirmask
+)
+
+:startupconfirmask
+cls
+echo So, you wish to use %ramamount% %ramdisplay% of RAM when starting?
+echo "yes" to proceed, "ramamount" or "ramtype" to reselect.
+goto startupconfirm
+
+:startupconfirm
+set /p confirm="> "
+IF %confirm%==yes (
+  goto dirselectask
+  )
+IF %confirm%==ramamount (
+  cls
+  goto ramamountselection
+  )
+IF %confirm%==ramtype (
+  cls
+  goto ramtypeselection
+  )
+echo Error: Invalid response. Please enter "yes", "ramamount", or "ramtype"
+goto startupconfirm
+
+:dirselectask
+cls
+echo Please enter the name of the folder your server jarfile is located in
+echo That is, relative to here, the desktop.
+:dirnotexst
+set /p bukkitdir="> "
+if not exist %CD%\%bukkitdir% (
+  cls
+  echo Error: %CD%\%bukkitdir% does not exist. Please ensure everything is in the correct place and retry
+  goto dirnotexst
+  )
+cls
+
+:dirselect
+echo Is %bukkitdir% correct? yes/no
+
+:dirselecterr
+set /p dircorrect="> "
+IF %dircorrect%==yes (
+  cls
+  goto jarselectask
+  )
+IF %dircorrect%==no (
+  cls
+  goto dirselectask
+  )
+cls
+echo Error: Invalid response. Please enter "yes or "no"
+goto dirselecterr
+
+:jarselectask
+echo What is the name of the jarfile you wish to use? (Excluding .jar)
+echo If you wish to use the default, craftbukkit.jar, simply press enter
+
+:jarselect
+set jarname=craftbukkit
+set /p jarname="> "
+if not exist %CD%\%bukkitdir%\%jarname%.jar (
+  cls
+  echo Error: %CD%\%bukkitdir%\%jarname%.jar does not exist. Please ensure everything is in the correct place and retry
+  goto jarselect
+  )
+cls
+echo Is %jarname%.jar correct? "yes" or "no"
+set jarconfirm=def
+
+:jarselectconfirm
+set /p jarconfirm="> "
+IF %jarconfirm%==yes (
+  cls
+  goto boottypeask
+  )
+IF %jarconfirm%==no (
+  cls
+  goto jarselectask
+  )
+echo Error: Invalid response. Please enter "yes" or "no"
+goto jarselectconfirm
+
+:boottypeask
+echo Would you like to boot normally, without plugins, or with a custom set of plugins? "norm", "nopl" or "custom"
+set boottype=def
+
+:boottypeselect
+set /p boottype="> "
+IF %boottype%==norm (
+  cls
+  set boottypedisplay=Normal
+  goto backupask
+  )
+IF %boottype%==nopl (
+  cls
+  set boottypedisplay=No Plugins
+  goto pldisable
+  )
+IF %boottype%==custom (
+  cls
+  set boottypedisplay=Custom plugin set -- %cpl%
+  goto cplask
+  )
+echo Error: Invalid response. Please enter "norm" or "nopl"
+goto boottypeselect
+
+:cplask
+echo What is the name of the custom plugin set you wish to use?
+set cpl=0
+
+:cplaskerr
+set /p cpl="> "
+IF %cpl%==0 (
+  cls
+  goto cplask
+  )
+IF NOT exist %CD%\%bukkitdir%\%cpl% (
+  cls
+  echo Error: Folder "%cpl%" does not exist in %bukkitdir%. Please ensure that you have not mistyped.
+  goto cplaskerr
+  )
+cls
+
+:cplcon
+echo You wish to use the plugin set %cpl%? "yes" or "no"
+set cpcon=def
+
+:cplconerr
+set /p cpcon="> "
+IF %cpcon%==yes (
+  cls
+  goto cplset
+  )
+IF %cpcon%==no (
+  cls
+  goto cplask
+  )
+cls
+echo Error: Invalid response. Please enter "yes" or "no"
+goto cplconerr
+
+:cplset
+cls
+ren %CD%\%bukkitdir%\plugins tmpdis
+ren %CD%\%bukkitdir%\%cpl% plugins
+goto backupask
+
+:pldisable
+cd %bukkitdir%
+ren plugins tempdisabled
+cd ..
+goto backupask
+
+:backupask
+cls
+echo Would you like to backup world files on stopping server? "yes" or "no"
+set backup=def
+
+:backupaskerr
+set /p backup="> "
+if not %backup%==yes if not %backup%==no (
+  cls
+  echo Error: Invalid response. Please enter "yes" or "no"
+  goto backupaskerr
+  )
+cls
+goto extraargs
+
+:extraargs
+echo Are there any extra JVM arguments you'd like to use?
+echo If not, enter "no", otherwise enter the arguments in the correct format.
+echo Any invalid arguments or bad formatting will most likely crash the launcher. Please be careful.
+set /p exargs="> "
+if %exargs%==no (
+  set exargs=>nul
+  )
+goto finalconfirm
+
+:finalconfirm
+cls
+echo Please ensure that all of the following specifications are correct:
+echo --------------------------------------------------------------
+echo Server Name: %servname%
+echo RAM: %ramamount% %ramdisplay%
+echo Directory: %bukkitdir% (%CD%\%bukkitdir%)
+echo Jarfile: %jarname%.jar
+echo Boot Type: %boottypedisplay%
+echo Back up World: %backup%
+echo Extra JVM Args: %exargs%
+echo --------------------------------------------------------------
+echo If they are, "yes", if not, "no".
+echo "no" will bring you back to the beginning.
+set fincon=def
+
+:finconerr
+set /p fincon="> "
+IF %fincon%==yes (
+  goto startup
+  )
+IF %fincon%==no (
+  cls
+  goto intcheck
+  )
+echo Error: Invalid response. Please enter "yes" or "no"
+goto finconerr
+
+:startup
+cls
+echo Starting Server...
+cd %bukkitdir%
+echo Finding best version of Java...
+if exist C:\Program Files\Java (
+  echo 64-bit found. Searching for version...
+  if exist C:\Program Files\Java\jre7 (
+    echo Found Java 7 64-bit.
+    set path=C:\Program Files\Java\jre7\bin
+    goto restartup
+    ) else (
+    if exist C:\Program Files\Java\jre6\bin (
+      set path=C:\Program Files\Java\jre6\bin
+      echo Found Java 6 64-bit.
+      goto restartup
+      ) else (
+        echo No Java 64-bit V6 or 7 found!
+        echo You must be using Java 8, or do not have Java installed properly. This is not recommended.
+        goto restartup
+        )
+  ) else (
+  echo 32-bit found. Searching for version...
+  if exist C:\Program Files(x86)\Java\jre7 (
+      echo Found Java 7 32-bit.
+      set path=C:\Program Files(x86)\Java\jre7\bin
+      goto restartup
+      ) else (
+      if exist C:\Program Files(x86)\Java\jre6\bin (
+        set path=C:\Program Files(x86)\Java\jre6\bin
+        echo Found Java 6 32-bit.
+        goto restartup
+        ) else (
+          echo No Java 32-bit V6 or 7 found!
+          echo You must be using Java 8, or do not have Java installed properly. This is not recommended.
+          goto restartup
+          )
+  )
+:restartup
+java -jar %jarname%.jar %exargs% Xmx%ramamount%%b% Xms%ramamount%%b% -o true
+goto restartask
+
+:restartask
+cls
+cd ..
+if %backup%==yes (
+  echo Backing up files...
+  set ft=%time::=.%
+  set st=%ft:~0,-3%
+  set fd=%date:/=.%
+  set sd=%fd:~4%
+  set finaldatetime=WorldBackup%sd%_%st%
+  mkdir %CD%\%bukkitdir%Backups\%finaldatetime%
+  copy %CD%\%bukkitdir%\world %CD%\%bukkitdir%Backups\%finaldatetime%
+  echo Successfully backed up files!
+  )
+cd %bukkitdir%
+echo Would you like to restart the server, or close down? "restart" or "close"
+
+:restart
+set res=def
+set /p res="> "
+IF %res%==restart (
+  cls
+  goto restartup
+  )
+IF %res%==close (
+  cls
+  goto stopp
+  )
+cls
+echo Error: Invalid response. Please enter "restart" or "close"
+goto restart
+
+:stopp
+IF %boottype%==nopl (
+  rmdir plugins
+  ren %CD%\tempdisabled plugins
+  echo Plugins re-enabled.
+  )
+IF %boottype%==custom (
+  ren %CD%\plugins %cpl%
+  ren %CD%\tmpdis plugins
+  echo Plugins returned to normal.
+  )
+echo Ready to shut down. Press any key to exit.
+PAUSE 1> nul
+EXIT
+
+:end
+echo If you are seeing this, an error has occured. Please report the error to:
+echo http://forums.bukkit.org/threads/startup-updated-z-boot-ultimate-launcher-lightweight-and-powerful.274630/
+echo The script will attempt to recover itself once you press a key.
+PAUSE 1> nul
+cls
+goto ramtypeselection
+echo Unable to recover!
+PAUSE
+EXIT
